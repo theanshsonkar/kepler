@@ -16,6 +16,9 @@ export type KeplerEvent =
   | { type: "finding"; data: unknown; ts: string }
   | { type: "diff"; data: unknown; ts: string }
   | { type: "decision"; data: unknown; ts: string }
+  | { type: "attackpaths"; data: unknown; ts: string }
+  | { type: "compliance"; data: unknown; ts: string }
+  | { type: "beforeafter"; data: unknown; ts: string }
   | { type: "status"; data: StatusEventData; ts: string }
   | { type: "error"; data: unknown; ts: string };
 

@@ -1,0 +1,845 @@
+{
+  "tools": [
+    {
+      "tool": "set_connection",
+      "payload": null
+    },
+    {
+      "tool": "emfirge_scan",
+      "payload": null
+    },
+    {
+      "tool": "emfirge_attack_paths",
+      "payload": {
+        "paths": [
+          {
+            "finding_id": "EMFIRGE-EC2-002",
+            "finding_title": "SSH port 22 is open to the entire internet (0.0.0.0/0)",
+            "severity": "critical",
+            "path": [
+              "NAME_132",
+              "INTERNET",
+              "NAME_140",
+              "IAM_ROLE_007",
+              "NAME_165"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-RDS-002",
+            "finding_title": "RDS instances publicly accessible: NAME_133",
+            "severity": "critical",
+            "path": [
+              "NAME_133"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-S3-002",
+            "finding_title": "S3 buckets without encryption: NAME_134",
+            "severity": "critical",
+            "path": [
+              "NAME_134"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-LAMBDA-001",
+            "finding_title": "Lambda functions with admin IAM permissions: NAME_136",
+            "severity": "critical",
+            "path": [
+              "NAME_136",
+              "IAM_ROLE_008",
+              "NAME_134"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-EC2-016",
+            "finding_title": "EC2 instance NAME_138 has IMDSv1 enabled \u2014 vulnerable to SSRF credential theft \u2014 internet-reachable (SSRF exploitable)",
+            "severity": "critical",
+            "path": [
+              "NAME_138",
+              "IAM_ROLE_007",
+              "NAME_165"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-EC2-016",
+            "finding_title": "EC2 instance NAME_139 has IMDSv1 enabled \u2014 vulnerable to SSRF credential theft \u2014 internet-reachable (SSRF exploitable)",
+            "severity": "critical",
+            "path": [
+              "NAME_139",
+              "IAM_ROLE_007",
+              "NAME_165"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-EC2-016",
+            "finding_title": "EC2 instance NAME_140 has IMDSv1 enabled \u2014 vulnerable to SSRF credential theft \u2014 internet-reachable (SSRF exploitable)",
+            "severity": "critical",
+            "path": [
+              "NAME_140",
+              "IAM_ROLE_007",
+              "NAME_165"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-EC2-016",
+            "finding_title": "EC2 instance NAME_141 has IMDSv1 enabled \u2014 vulnerable to SSRF credential theft \u2014 internet-reachable (SSRF exploitable)",
+            "severity": "critical",
+            "path": [
+              "NAME_141",
+              "IAM_ROLE_007",
+              "NAME_165"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-EC2-013",
+            "finding_title": "Internal service port 8080 open to the internet on security group NAME_143",
+            "severity": "critical",
+            "path": [
+              "NAME_143",
+              "INTERNET",
+              "NAME_140",
+              "IAM_ROLE_007",
+              "NAME_165"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-LAMBDA-002",
+            "finding_title": "Lambda functions on deprecated runtimes: NAME_096",
+            "severity": "moderate",
+            "path": [
+              "NAME_096",
+              "IAM_ROLE_009",
+              "NAME_111"
+            ]
+          },
+          {
+            "finding_id": "EMFIRGE-S3-001",
+            "finding_title": "Public S3 bucket detected: NAME_098 \u2014 consider adding CloudFront for better security and performance",
+            "severity": "moderate",
+            "path": [
+              "NAME_098"
+            ]
+          }
+        ],
+        "critical_resources": [
+          {
+            "node_id": "IAM_ROLE_007",
+            "label": "IAM Role: NAME_166",
+            "type": "iam_role",
+            "finding_count": 6,
+            "max_severity": "Critical",
+            "blast_radius": 5,
+            "centrality": 0.564103,
+            "exploit_distance": 4
+          },
+          {
+            "node_id": "NAME_165",
+            "label": "RDS: NAME_165",
+            "type": "rds_instance",
+            "finding_count": 6,
+            "max_severity": "Critical",
+            "blast_radius": 5,
+            "centrality": 0.410256,
+            "exploit_distance": 6
+          },
+          {
+            "node_id": "NAME_140",
+            "label": "EC2: NAME_140",
+            "type": "ec2_instance",
+            "finding_count": 3,
+            "max_severity": "Critical",
+            "blast_radius": 5,
+            "centrality": 0.184295,
+            "exploit_distance": 1
+          },
+          {
+            "node_id": "NAME_133",
+            "label": "RDS: NAME_133",
+            "type": "rds_instance",
+            "finding_count": 3,
+            "max_severity": "Critical",
+            "blast_radius": 0,
+            "centrality": 0,
+            "exploit_distance": null
+          },
+          {
+            "node_id": "INTERNET",
+            "label": "Internet",
+            "type": "internet",
+            "finding_count": 2,
+            "max_severity": "Critical",
+            "blast_radius": 0,
+            "centrality": 0,
+            "exploit_distance": null
+          }
+        ],
+        "orphaned_resources": [
+          {
+            "id": "IGW_002",
+            "type": "internet_gateway",
+            "label": "Internet Gateway: IGW_002",
+            "metadata": {},
+            "estimated_monthly_cost": 0,
+            "cost_unit": "unknown",
+            "reason": "Orphaned resource \u2014 no active relationships"
+          },
+          {
+            "id": "NAT_001",
+            "type": "nat_gateway",
+            "label": "NAT Gateway: NAT_001",
+            "metadata": {},
+            "estimated_monthly_cost": 0,
+            "cost_unit": "unknown",
+            "reason": "Orphaned resource \u2014 no active relationships"
+          },
+          {
+            "id": "NAME_154",
+            "type": "ebs_volume",
+            "label": "EBS: 50GB",
+            "metadata": {
+              "size_gb": 50,
+              "volume_type": "gp3",
+              "availability_zone": "us-east-1a"
+            },
+            "provider": "aws",
+            "category": "storage",
+            "resource_type": "ebs_volume",
+            "base": {
+              "size_gb": 50,
+              "volume_type": "gp3",
+              "availability_zone": "us-east-1a"
+            },
+            "security": null,
+            "cost": null,
+            "limits": null,
+            "telemetry": null,
+            "estimated_monthly_cost": 5,
+            "cost_unit": "50GB \u00d7 $0.10/mo",
+            "reason": "Unattached EBS volume (available state)"
+          },
+          {
+            "id": "NAME_155",
+            "type": "ebs_volume",
+            "label": "EBS: 100GB",
+            "metadata": {
+              "size_gb": 100,
+              "volume_type": "gp3",
+              "availability_zone": "us-east-1b"
+            },
+            "provider": "aws",
+            "category": "storage",
+            "resource_type": "ebs_volume",
+            "base": {
+              "size_gb": 100,
+              "volume_type": "gp3",
+              "availability_zone": "us-east-1b"
+            },
+            "security": null,
+            "cost": null,
+            "limits": null,
+            "telemetry": null,
+            "estimated_monthly_cost": 10,
+            "cost_unit": "100GB \u00d7 $0.10/mo",
+            "reason": "Unattached EBS volume (available state)"
+          },
+          {
+            "id": "NAME_156",
+            "type": "ebs_volume",
+            "label": "EBS: 200GB",
+            "metadata": {
+              "size_gb": 200,
+              "volume_type": "io1",
+              "availability_zone": "us-east-1a"
+            },
+            "provider": "aws",
+            "category": "storage",
+            "resource_type": "ebs_volume",
+            "base": {
+              "size_gb": 200,
+              "volume_type": "io1",
+              "availability_zone": "us-east-1a"
+            },
+            "security": null,
+            "cost": null,
+            "limits": null,
+            "telemetry": null,
+            "estimated_monthly_cost": 20,
+            "cost_unit": "200GB \u00d7 $0.10/mo",
+            "reason": "Unattached EBS volume (available state)"
+          },
+          {
+            "id": "NAME_157",
+            "type": "ebs_volume",
+            "label": "EBS: 50GB",
+            "metadata": {
+              "size_gb": 50,
+              "volume_type": "gp3",
+              "availability_zone": "us-east-1b"
+            },
+            "provider": "aws",
+            "category": "storage",
+            "resource_type": "ebs_volume",
+            "base": {
+              "size_gb": 50,
+              "volume_type": "gp3",
+              "availability_zone": "us-east-1b"
+            },
+            "security": null,
+            "cost": null,
+            "limits": null,
+            "telemetry": null,
+            "estimated_monthly_cost": 5,
+            "cost_unit": "50GB \u00d7 $0.10/mo",
+            "reason": "Unattached EBS volume (available state)"
+          },
+          {
+            "id": "NAME_158",
+            "type": "elastic_ip",
+            "label": "EIP: IP_004",
+            "metadata": {
+              "public_ip": "IP_004",
+              "is_attached": false
+            },
+            "provider": "aws",
+            "category": "other",
+            "resource_type": "elastic_ip",
+            "base": {
+              "public_ip": "IP_004",
+              "is_attached": false
+            },
+            "security": null,
+            "cost": null,
+            "limits": null,
+            "telemetry": null,
+            "estimated_monthly_cost": 3.65,
+            "cost_unit": "per unattached EIP",
+            "reason": "Elastic IP not associated with any instance"
+          },
+          {
+            "id": "NAME_159",
+            "type": "api_gateway",
+            "label": "API GW: NAME_167",
+            "metadata": {
+              "api_type": "REST",
+              "endpoint_type": "PRIVATE",
+              "auth_type": "IAM",
+              "has_waf": false
+            },
+            "estimated_monthly_cost": 0,
+            "cost_unit": "unknown",
+            "reason": "Orphaned resource \u2014 no active relationships"
+          }
+        ],
+        "stats": {
+          "total_nodes": 55,
+          "total_edges": 91,
+          "orphaned_count": 8,
+          "estimated_monthly_waste": 43.65,
+          "node_types": {
+            "ec2_instance": 7,
+            "iam_role": 4,
+            "security_group": 5,
+            "internet": 1,
+            "load_balancer": 2,
+            "s3_bucket": 5,
+            "cloudfront_distribution": 1,
+            "rds_instance": 2,
+            "lambda_function": 4,
+            "secretsmanager_secret": 3,
+            "ecs_tasks": 1,
+            "vpc_subnet": 4,
+            "internet_gateway": 1,
+            "nat_gateway": 1,
+            "vpc": 1,
+            "ebs_volume": 4,
+            "elastic_ip": 2,
+            "api_gateway": 2,
+            "elasticache_cluster": 1,
+            "sqs_queue": 2,
+            "dynamodb_table": 2
+          },
+          "edge_types": {
+            "uses_security_group": 11,
+            "in_subnet": 10,
+            "uses_iam_role": 8,
+            "attached_to_instance": 7,
+            "REACHES_VIA_SG": 4,
+            "REACHES": 4,
+            "targets_instance": 3,
+            "serves_from_bucket": 1,
+            "in_vpc": 3,
+            "REFERENCES_SECRET": 3,
+            "USES_ROLE": 1,
+            "belongs_to_vpc": 4,
+            "contains_resource": 7,
+            "can_access": 25
+          }
+        }
+      }
+    },
+    {
+      "tool": "emfirge_check_compliance",
+      "payload": {
+        "id": "NAME_017",
+        "name": "NAME_018",
+        "version": "1.5",
+        "totalControls": 29,
+        "passedControls": 5,
+        "failedControls": 24,
+        "naControls": 0,
+        "sections": [
+          {
+            "id": "NAME_019",
+            "title": "Identity and Access Management"
+          },
+          {
+            "id": "NAME_020",
+            "title": "Storage"
+          },
+          {
+            "id": "NAME_021",
+            "title": "Logging"
+          },
+          {
+            "id": "NAME_022",
+            "title": "Monitoring"
+          },
+          {
+            "id": "NAME_023",
+            "title": "Networking"
+          },
+          {
+            "id": "NAME_024",
+            "title": "Compute"
+          },
+          {
+            "id": "NAME_025",
+            "title": "Database"
+          }
+        ],
+        "controls": [
+          {
+            "id": "NAME_026",
+            "title": "Ensure no root access keys exist",
+            "section": "1",
+            "status": "pass",
+            "mappedRuleId": "EMFIRGE-IAM-001",
+            "description": "No root access keys found"
+          },
+          {
+            "id": "NAME_027",
+            "title": "Ensure MFA enabled for all IAM users",
+            "section": "1",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-IAM-003",
+            "description": "Users without MFA detected"
+          },
+          {
+            "id": "NAME_028",
+            "title": "Avoid use of root account",
+            "section": "1",
+            "status": "pass",
+            "mappedRuleId": "EMFIRGE-IAM-005",
+            "description": "Root account not used in last 90 days"
+          },
+          {
+            "id": "NAME_029",
+            "title": "Rotate access keys within 90 days",
+            "section": "1",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-IAM-004",
+            "description": "Stale access keys detected (>90 days old)"
+          },
+          {
+            "id": "NAME_030",
+            "title": "Ensure no wildcard IAM policies",
+            "section": "1",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-IAM-006",
+            "description": "Users/roles with wildcard admin policies found"
+          },
+          {
+            "id": "NAME_031",
+            "title": "Ensure S3 buckets are not public",
+            "section": "2",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-S3-001",
+            "description": "Public S3 bucket(s) detected"
+          },
+          {
+            "id": "NAME_032",
+            "title": "Ensure S3 bucket encryption",
+            "section": "2",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-S3-002",
+            "description": "Unencrypted S3 bucket(s) detected"
+          },
+          {
+            "id": "NAME_033",
+            "title": "Ensure S3 versioning enabled",
+            "section": "2",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-S3-003",
+            "description": "Bucket(s) without versioning detected"
+          },
+          {
+            "id": "NAME_034",
+            "title": "Ensure S3 access logging",
+            "section": "2",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-S3-004",
+            "description": "Bucket(s) without access logging detected"
+          },
+          {
+            "id": "NAME_035",
+            "title": "Ensure CloudTrail is enabled",
+            "section": "3",
+            "status": "pass",
+            "mappedRuleId": "EMFIRGE-CT-001",
+            "description": "CloudTrail enabled"
+          },
+          {
+            "id": "NAME_036",
+            "title": "Ensure CloudTrail multi-region",
+            "section": "3",
+            "status": "pass",
+            "mappedRuleId": "EMFIRGE-CT-002",
+            "description": "Multi-region trail configured"
+          },
+          {
+            "id": "NAME_037",
+            "title": "Ensure CloudTrail log file validation",
+            "section": "3",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-CT-003",
+            "description": "CloudTrail log file validation disabled"
+          },
+          {
+            "id": "NAME_038",
+            "title": "Ensure VPC flow logs enabled",
+            "section": "3",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-VPC-001",
+            "description": "VPC(s) without flow logs detected"
+          },
+          {
+            "id": "NAME_039",
+            "title": "Ensure GuardDuty is enabled",
+            "section": "4",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-GD-001",
+            "description": "GuardDuty is disabled"
+          },
+          {
+            "id": "NAME_040",
+            "title": "Ensure CloudWatch alarms exist",
+            "section": "4",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-CW-001",
+            "description": "No CloudWatch alarms configured"
+          },
+          {
+            "id": "NAME_041",
+            "title": "Ensure AWS Config is enabled",
+            "section": "4",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-CFG-001",
+            "description": "AWS Config is disabled"
+          },
+          {
+            "id": "NAME_042",
+            "title": "Ensure KMS key rotation",
+            "section": "4",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-KMS-001",
+            "description": "CMK(s) without rotation detected"
+          },
+          {
+            "id": "NAME_043",
+            "title": "Restrict SSH access (port 22)",
+            "section": "5",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-EC2-002",
+            "description": "SSH open to 0.0.0.0/0 detected"
+          },
+          {
+            "id": "NAME_044",
+            "title": "Restrict RDP access (port 3389)",
+            "section": "5",
+            "status": "pass",
+            "mappedRuleId": "EMFIRGE-EC2-003",
+            "description": "RDP not exposed to internet"
+          },
+          {
+            "id": "NAME_045",
+            "title": "Ensure no NAME_016 VPC in use",
+            "section": "5",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-VPC-002",
+            "description": "Resources deployed in NAME_016 VPC"
+          },
+          {
+            "id": "NAME_046",
+            "title": "Ensure WAF on public ALBs",
+            "section": "5",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-WAF-001",
+            "description": "ALB(s) without WAF detected"
+          },
+          {
+            "id": "NAME_047",
+            "title": "Ensure IMDSv2 required on EC2",
+            "section": "6",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-EC2-016",
+            "description": "Instance(s) using IMDSv1 detected"
+          },
+          {
+            "id": "NAME_048",
+            "title": "Ensure no stopped instances (waste)",
+            "section": "6",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-EC2-006",
+            "description": "Stopped instance(s) detected (cost waste)"
+          },
+          {
+            "id": "NAME_049",
+            "title": "Ensure Lambda functions in VPC",
+            "section": "6",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-LAMBDA-004",
+            "description": "Lambda function(s) not in VPC"
+          },
+          {
+            "id": "NAME_050",
+            "title": "Ensure ECS no privileged containers",
+            "section": "6",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-ECS-001",
+            "description": "Privileged ECS container(s) detected"
+          },
+          {
+            "id": "NAME_051",
+            "title": "Ensure RDS not publicly accessible",
+            "section": "7",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-RDS-002",
+            "description": "Publicly accessible RDS instance(s) detected"
+          },
+          {
+            "id": "NAME_052",
+            "title": "Ensure RDS encryption enabled",
+            "section": "7",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-RDS-003",
+            "description": "Unencrypted RDS instance(s) detected"
+          },
+          {
+            "id": "NAME_053",
+            "title": "Ensure RDS Multi-AZ enabled",
+            "section": "7",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-RDS-006",
+            "description": "RDS instance(s) without Multi-AZ"
+          },
+          {
+            "id": "NAME_054",
+            "title": "Ensure RDS backup retention >= 7 days",
+            "section": "7",
+            "status": "fail",
+            "mappedRuleId": "EMFIRGE-RDS-007",
+            "description": "RDS backup retention below 7 days"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "emfirge_create_branch",
+      "payload": {
+        "branch_id": "f8c02502-4ccf-40a3-8eb6-c756ae4b0b7d"
+      }
+    },
+    {
+      "tool": "emfirge_apply_change",
+      "payload": null
+    },
+    {
+      "tool": "emfirge_branch_diff",
+      "payload": {
+        "added_nodes": [],
+        "removed_nodes": [],
+        "modified_nodes": [
+          "NAME_132"
+        ],
+        "added_edges": [],
+        "removed_edges": [
+          {
+            "from": "INTERNET",
+            "to": "NAME_140",
+            "relationship": "REACHES_VIA_SG"
+          },
+          {
+            "from": "INTERNET",
+            "to": "NAME_132",
+            "relationship": "REACHES"
+          }
+        ],
+        "added_findings": [
+          {
+            "rule_id": "",
+            "resource_id": "NAME_210",
+            "severity": "Low"
+          },
+          {
+            "rule_id": "EMFIRGE-RDS-006",
+            "resource_id": "NAME_210",
+            "severity": "Moderate"
+          },
+          {
+            "rule_id": "EMFIRGE-RDS-007",
+            "resource_id": "NAME_210",
+            "severity": "Moderate"
+          }
+        ],
+        "removed_findings": [
+          {
+            "rule_id": "",
+            "resource_id": "NAME_145",
+            "severity": "Low"
+          },
+          {
+            "rule_id": "EMFIRGE-EC2-002",
+            "resource_id": "NAME_132",
+            "severity": "Critical"
+          },
+          {
+            "rule_id": "EMFIRGE-RDS-006",
+            "resource_id": "NAME_145",
+            "severity": "Moderate"
+          },
+          {
+            "rule_id": "EMFIRGE-RDS-007",
+            "resource_id": "NAME_145",
+            "severity": "Moderate"
+          }
+        ],
+        "score_before": 4,
+        "score_after": 4,
+        "score_delta": 0,
+        "newly_internet_reachable": [],
+        "no_longer_internet_reachable": [
+          "NAME_140",
+          "NAME_132"
+        ]
+      }
+    },
+    {
+      "tool": "emfirge_verify_fix",
+      "payload": null
+    },
+    {
+      "tool": "emfirge_apply_change",
+      "payload": null
+    },
+    {
+      "tool": "emfirge_branch_verdict",
+      "payload": {
+        "verdict": "warn",
+        "native_added": [
+          {
+            "source": "NAME_189",
+            "check_id": "",
+            "resource": "NAME_210",
+            "severity": "low",
+            "title": "",
+            "rule_id": "",
+            "resource_id": "NAME_210"
+          },
+          {
+            "source": "NAME_189",
+            "check_id": "EMFIRGE-RDS-006",
+            "resource": "NAME_210",
+            "severity": "medium",
+            "title": "EMFIRGE-RDS-006",
+            "rule_id": "EMFIRGE-RDS-006",
+            "resource_id": "NAME_210"
+          },
+          {
+            "source": "NAME_189",
+            "check_id": "EMFIRGE-RDS-007",
+            "resource": "NAME_210",
+            "severity": "medium",
+            "title": "EMFIRGE-RDS-007",
+            "rule_id": "EMFIRGE-RDS-007",
+            "resource_id": "NAME_210"
+          }
+        ],
+        "native_removed": [
+          {
+            "source": "NAME_189",
+            "check_id": "",
+            "resource": "NAME_145",
+            "severity": "low",
+            "title": "",
+            "rule_id": "",
+            "resource_id": "NAME_145"
+          },
+          {
+            "source": "NAME_189",
+            "check_id": "EMFIRGE-EC2-002",
+            "resource": "NAME_132",
+            "severity": "critical",
+            "title": "EMFIRGE-EC2-002",
+            "rule_id": "EMFIRGE-EC2-002",
+            "resource_id": "NAME_132"
+          },
+          {
+            "source": "NAME_189",
+            "check_id": "EMFIRGE-RDS-006",
+            "resource": "NAME_145",
+            "severity": "medium",
+            "title": "EMFIRGE-RDS-006",
+            "rule_id": "EMFIRGE-RDS-006",
+            "resource_id": "NAME_145"
+          },
+          {
+            "source": "NAME_189",
+            "check_id": "EMFIRGE-RDS-007",
+            "resource": "NAME_145",
+            "severity": "medium",
+            "title": "EMFIRGE-RDS-007",
+            "rule_id": "EMFIRGE-RDS-007",
+            "resource_id": "NAME_145"
+          }
+        ],
+        "scanner_added": [],
+        "scanner_removed": [],
+        "score_before": 4,
+        "score_after": 4,
+        "score_delta": 0,
+        "newly_internet_reachable": [],
+        "no_longer_internet_reachable": [
+          "NAME_140",
+          "NAME_132"
+        ],
+        "scanner_available": true,
+        "scanner_status": {
+          "checkov": "ok",
+          "trivy": "ok",
+          "cloudsplaining": "ok"
+        },
+        "coverage_warnings": [],
+        "cost_delta_monthly_usd": 0
+      }
+    },
+    {
+      "tool": "emfirge_apply_change",
+      "payload": null
+    },
+    {
+      "tool": "emfirge_apply_change",
+      "payload": null
+    }
+  ],
+  "reply": "Done \u2014 I modeled the SSH fix on an isolated branch (seal-ssh-sg). The critical finding EMFIRGE-EC2-002 (SSH open to 0.0.0.0/0 on NAME_132) is gone, and NAME_140 and NAME_132 are no longer reachable from the internet. Verdict: warn \u2014 the account still has other criticals. Nothing touched production (0 cloud writes). Want me to apply this fix?"
+}

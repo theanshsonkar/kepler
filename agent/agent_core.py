@@ -29,7 +29,7 @@ logger = logging.getLogger("kepler.agent")
 
 _AGENT_DIR = Path(__file__).resolve().parent
 DEFAULT_MCP_COMMAND = "npx -y @emfirge/mcp"
-ALLOWED_EVENT_TYPES = {"token", "activity", "finding", "diff", "decision", "status", "error"}
+ALLOWED_EVENT_TYPES = {"token", "activity", "finding", "diff", "decision", "status", "error", "attackpaths", "compliance", "beforeafter"}
 SYSTEM_PROMPT = (
     "You are Kepler, a branch-native cloud agent. Kepler forks the user's live cloud into "
     "an isolated branch, applies proposed changes on that branch, and measures consequences "
@@ -353,6 +353,52 @@ def _branch_verdict_event(payload: dict[str, Any]) -> dict[str, Any]:
     return _event("finding", data)
 
 
+def _attack_paths_event(payload: dict) -> dict:
+    return _event("attackpaths", {
+        "paths": payload.get("paths", []),
+        "critical_resources": payload.get("critical_resources", []),
+    })
+
+
+def _compliance_event(payload: dict) -> dict:
+    fw = payload
+    frameworks = payload.get("frameworks")
+    if isinstance(frameworks, list) and frameworks:
+        fw = frameworks[0]
+    controls = fw.get("controls") if isinstance(fw.get("controls"), list) else []
+    return _event("compliance", {
+        "framework": "CIS AWS Foundations",
+        "version": str(fw.get("version", "1.5")),
+        "passed": _number(fw.get("passedControls")) or 0,
+        "failed": _number(fw.get("failedControls")) or 0,
+        "total": _number(fw.get("totalControls")) or 0,
+        "controls": controls,
+    })
+
+
+def _before_after_event(payload: dict) -> dict:
+    return _event("beforeafter", {
+        "score_before": _number(payload.get("score_before")),
+        "score_after": _number(payload.get("score_after")),
+        "removed_findings": payload.get("removed_findings", []),
+        "added_findings": payload.get("added_findings", []),
+        "no_longer_internet_reachable": payload.get("no_longer_internet_reachable", []),
+        "newly_internet_reachable": payload.get("newly_internet_reachable", []),
+    })
+
+
+def _decision_event(payload: dict) -> dict:
+    verdict = str(payload.get("verdict", payload.get("status", ""))).lower()
+    removed = [f for f in payload.get("native_removed", []) if str(f.get("severity", "")).lower() in {"critical", "high"}]
+    return _event("decision", {
+        "verdict": verdict,
+        "removed_criticals": removed,
+        "no_longer_internet_reachable": payload.get("no_longer_internet_reachable", []),
+        "score_before": _number(payload.get("score_before")),
+        "score_after": _number(payload.get("score_after")),
+    })
+
+
 async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any], None]:
     """Run an isolated read-only turn using the unified event schema."""
     session = get_session(session_id)
@@ -360,10 +406,43 @@ async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any
         yield _event("error", {"message": "Session not found"})
         return
 
+    if os.environ.get("KEPLER_DEMO") == "1":
+        import asyncio
+        from pathlib import Path
+        fixture = json.loads((Path(__file__).parent / "demo_fixture.json").read_text())
+        yield _event("status", {"state": "connected", "region": "us-east-1", "account": "000000000000", "cloud_writes": 0})
+        await asyncio.sleep(0.3)
+        for entry in fixture.get("tools", []):
+            tool = entry.get("tool") or ""
+            payload = entry.get("payload")
+            yield _event("activity", {"line": tool})
+            await asyncio.sleep(0.45)
+            if payload is None:
+                continue
+            if tool in ("emfirge_scan", "emfirge_get_findings"):
+                for ev in _scan_events(tool, payload):
+                    yield ev
+            elif tool == "emfirge_attack_paths":
+                yield _attack_paths_event(payload)
+            elif tool == "emfirge_check_compliance":
+                yield _compliance_event(payload)
+            elif tool == "emfirge_branch_diff":
+                yield _branch_diff_event(session, payload)
+                yield _before_after_event(payload)
+            elif tool == "emfirge_branch_verdict":
+                yield _branch_verdict_event(payload)
+                yield _decision_event(payload)
+            await asyncio.sleep(0.35)
+        reply = fixture.get("reply") or ""
+        if reply:
+            yield _event("token", {"text": reply})
+        yield _event("status", {"state": "done", "cloud_writes": 0})
+        return
     emitted_token = False
     connection_status_emitted = session.connected
     tool_names_by_id: dict[str, str] = {}
     processed_tool_results: set[str] = set()
+    emitted_tool_use_ids: set[str] = set()
     try:
         # The client remains open for discovery, Agent construction, and streaming.
         with MCPClient(lambda: _server_parameters()) as mcp_client:
@@ -399,21 +478,37 @@ async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any
                     if result_key in processed_tool_results:
                         continue
                     processed_tool_results.add(result_key)
-                    if str(_get(result, "status", "")).lower() == "error":
-                        continue
                     tool_name = tool_names_by_id.get(str(use_id), "") if use_id else ""
                     payload_text = _tool_result_payload(result)
-                    if tool_name in {"emfirge_scan", "emfirge_get_findings", "emfirge_branch_diff", "emfirge_branch_verdict"}:
-                        payload = _loads_object(payload_text)
+                    payload = _loads_object(payload_text)
+                    if str(_get(result, "status", "")).lower() == "error":
+                        continue
+                    if tool_name in {"emfirge_scan", "emfirge_get_findings", "emfirge_branch_diff", "emfirge_branch_verdict", "emfirge_attack_paths", "emfirge_check_compliance"}:
                         if payload is None:
                             continue
                         if tool_name in {"emfirge_scan", "emfirge_get_findings"}:
                             for emitted in _scan_events(tool_name, payload):
                                 yield emitted
+                            if use_id:
+                                emitted_tool_use_ids.add(str(use_id))
                         elif tool_name == "emfirge_branch_diff":
                             yield _branch_diff_event(session, payload)
-                        else:
+                            yield _before_after_event(payload)
+                            if use_id:
+                                emitted_tool_use_ids.add(str(use_id))
+                        elif tool_name == "emfirge_branch_verdict":
                             yield _branch_verdict_event(payload)
+                            yield _decision_event(payload)
+                            if use_id:
+                                emitted_tool_use_ids.add(str(use_id))
+                        elif tool_name == "emfirge_attack_paths":
+                            yield _attack_paths_event(payload)
+                            if use_id:
+                                emitted_tool_use_ids.add(str(use_id))
+                        elif tool_name == "emfirge_check_compliance":
+                            yield _compliance_event(payload)
+                            if use_id:
+                                emitted_tool_use_ids.add(str(use_id))
                 if not connection_status_emitted and session.connected:
                     account = _account_from_role_arn(session.role_arn or "")
                     yield _event(
@@ -436,6 +531,57 @@ async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any
                     if final_text:
                         emitted_token = True
                         yield _event("token", {"text": final_text})
+            for message in agent.messages:
+                for use in _tool_uses(message):
+                    use_id = _get(use, "toolUseId", _get(use, "tool_use_id"))
+                    name = _get(use, "name")
+                    if use_id and name:
+                        tool_names_by_id[str(use_id)] = str(name)
+            for message in agent.messages:
+                for result in _tool_results(message):
+                    use_id = _get(result, "toolUseId", _get(result, "tool_use_id"))
+                    tool_name = tool_names_by_id.get(str(use_id), "")
+                    payload = _loads_object(_tool_result_payload(result))
+                    if not use_id or str(use_id) in emitted_tool_use_ids:
+                        continue
+                    if str(_get(result, "status", "")).lower() == "error":
+                        continue
+                    if payload is None:
+                        continue
+                    if tool_name in {"emfirge_scan", "emfirge_get_findings"}:
+                        for emitted in _scan_events(tool_name, payload):
+                            yield emitted
+                    elif tool_name == "emfirge_branch_diff":
+                        yield _branch_diff_event(session, payload)
+                        yield _before_after_event(payload)
+                    elif tool_name == "emfirge_branch_verdict":
+                        yield _branch_verdict_event(payload)
+                        yield _decision_event(payload)
+                    elif tool_name == "emfirge_attack_paths":
+                        yield _attack_paths_event(payload)
+                    elif tool_name == "emfirge_check_compliance":
+                        yield _compliance_event(payload)
+                    else:
+                        continue
+                    emitted_tool_use_ids.add(str(use_id))
+            if not emitted_token:
+                final_text = ""
+                for message in reversed(agent.messages):
+                    if _get(message, "role") != "assistant":
+                        continue
+                    text_parts = []
+                    for block in _content(message):
+                        text = _get(block, "text")
+                        if text is not None:
+                            text_parts.append(_text(text))
+                    final_text = "".join(text_parts)
+                    if final_text:
+                        break
+                if final_text:
+                    emitted_token = True
+                    yield _event("token", {"text": final_text})
+                else:
+                    logger.warning("no assistant text found in messages")
         yield _event("status", {"state": "done", "cloud_writes": 0})
     except Exception as exc:
         logger.exception("Agent turn failed")
