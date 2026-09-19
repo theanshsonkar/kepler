@@ -5,6 +5,9 @@ export type StatusEventData = {
   branch?: string;
   region?: string;
   account?: string;
+  score?: number;
+  security_score?: number;
+  resources?: number;
 };
 
 export type KeplerEvent =

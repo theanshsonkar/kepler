@@ -199,7 +199,158 @@ def _result_text(raw: dict[str, Any]) -> str:
         for key in ("text", "message", "output"):
             if result.get(key):
                 return _text(result[key])
+    else:
+        output = getattr(result, "output", None)
+        if output:
+            return _text(output)
     return _text(result)
+
+
+def _get(value: Any, key: str, default: Any = None) -> Any:
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+
+def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def _message_events(raw: Any) -> list[Any]:
+    message = _get(raw, "message")
+    if message is not None:
+        return [message]
+    event = _get(raw, "event")
+    if event is not None:
+        nested = _message_events(event)
+        if nested:
+            return nested
+    return [raw] if _get(raw, "role") is not None else []
+
+
+def _content(message: Any) -> list[Any]:
+    return _as_list(_get(message, "content"))
+
+
+def _tool_uses(raw: Any) -> list[Any]:
+    uses: list[Any] = []
+    current = _get(raw, "current_tool_use")
+    if current is not None:
+        uses.append(current)
+    for message in _message_events(raw):
+        for block in _content(message):
+            use = _get(block, "toolUse")
+            if use is None:
+                use = _get(block, "tool_use")
+            if use is not None:
+                uses.append(use)
+    return uses
+
+
+def _tool_results(raw: Any) -> list[Any]:
+    results: list[Any] = []
+    for message in _message_events(raw):
+        if _get(message, "role") != "user":
+            continue
+        for block in _content(message):
+            result = _get(block, "toolResult")
+            if result is None:
+                result = _get(block, "tool_result")
+            if result is not None:
+                results.append(result)
+    return results
+
+
+def _tool_result_payload(result: Any) -> str:
+    content = _get(result, "content")
+    for block in _as_list(content):
+        text = _get(block, "text")
+        if isinstance(text, str):
+            return text
+    return content if isinstance(content, str) else ""
+
+
+def _loads_object(payload: Any) -> dict[str, Any] | None:
+    if not isinstance(payload, str):
+        return None
+    try:
+        parsed = json.loads(payload)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _number(value: Any) -> int | float | None:
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _finding_events(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    categories = ("critical_risks", "moderate_risks", "cost_findings")
+    selected = [item for key in categories for item in _as_list(payload.get(key))]
+    if not selected and not any(key in payload for key in categories):
+        selected = _as_list(payload.get("best_practices"))
+    events: list[dict[str, Any]] = []
+    for item in selected[:20]:
+        if not isinstance(item, dict):
+            continue
+        confidence = item.get("confidence")
+        data: dict[str, Any] = {
+            "label": "issue",
+            "value": item.get("resource_id") or item.get("aws_service") or "",
+            "severity": item.get("severity", "info"),
+        }
+        if confidence is not None:
+            data["confidence"] = confidence
+        events.append(_event("finding", data))
+    return events
+
+
+def _scan_events(tool_name: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
+    if tool_name not in {"emfirge_scan", "emfirge_get_findings"}:
+        return []
+    events = _finding_events(payload)
+    data: dict[str, Any] = {"state": "scanned", "cloud_writes": 0}
+    for key in ("score", "security_score", "resources"):
+        value = _number(payload.get(key))
+        if value is not None:
+            data[key] = value
+    events.append(_event("status", data))
+    return events
+
+
+def _branch_diff_event(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    def value(*keys: str) -> Any:
+        for key in keys:
+            if key in payload:
+                return payload[key]
+        return 0
+
+    before = _number(payload.get("score_before", payload.get("before_score")))
+    after = _number(payload.get("score_after", payload.get("after_score")))
+    delta = _number(payload.get("delta"))
+    if delta is None and before is not None and after is not None:
+        delta = after - before
+    score = f"{before}->{after}"
+    if delta is not None:
+        score += f" (delta {delta:+g})"
+    lines = [
+        f"nodes +{value('added_nodes')} / -{value('removed_nodes')}",
+        f"findings +{value('added_findings')} / -{value('removed_findings')}",
+        f"score {score}",
+        f"newly_internet_reachable: {_text(value('newly_internet_reachable'))}",
+    ]
+    return _event("diff", {"branch": session.active_branch, "text": "\n".join(lines)[:1000]})
+
+
+def _branch_verdict_event(payload: dict[str, Any]) -> dict[str, Any]:
+    verdict = str(payload.get("verdict", payload.get("status", ""))).lower()
+    severity = {"pass": "info", "warn": "warning", "block": "critical"}.get(verdict, verdict or "info")
+    data: dict[str, Any] = {"label": "summary", "value": "", "severity": severity}
+    if payload.get("confidence") is not None:
+        data["confidence"] = payload["confidence"]
+    return _event("finding", data)
 
 
 async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any], None]:
@@ -211,6 +362,8 @@ async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any
 
     emitted_token = False
     connection_status_emitted = session.connected
+    tool_names_by_id: dict[str, str] = {}
+    processed_tool_results: set[str] = set()
     try:
         # The client remains open for discovery, Agent construction, and streaming.
         with MCPClient(lambda: _server_parameters()) as mcp_client:
@@ -232,9 +385,35 @@ async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any
                         emitted_token = True
                         yield _event("token", {"text": text})
                     continue
+                for use in _tool_uses(raw):
+                    use_id = _get(use, "toolUseId", _get(use, "tool_use_id"))
+                    name = _get(use, "name")
+                    if use_id and name:
+                        tool_names_by_id[str(use_id)] = str(name)
                 activity = _current_tool_activity(raw)
                 if activity:
                     yield _event("activity", {"line": activity})
+                for result_index, result in enumerate(_tool_results(raw)):
+                    use_id = _get(result, "toolUseId", _get(result, "tool_use_id"))
+                    result_key = f"{use_id}:{result_index}" if use_id else f"raw:{id(raw)}:{result_index}"
+                    if result_key in processed_tool_results:
+                        continue
+                    processed_tool_results.add(result_key)
+                    if str(_get(result, "status", "")).lower() == "error":
+                        continue
+                    tool_name = tool_names_by_id.get(str(use_id), "") if use_id else ""
+                    payload_text = _tool_result_payload(result)
+                    if tool_name in {"emfirge_scan", "emfirge_get_findings", "emfirge_branch_diff", "emfirge_branch_verdict"}:
+                        payload = _loads_object(payload_text)
+                        if payload is None:
+                            continue
+                        if tool_name in {"emfirge_scan", "emfirge_get_findings"}:
+                            for emitted in _scan_events(tool_name, payload):
+                                yield emitted
+                        elif tool_name == "emfirge_branch_diff":
+                            yield _branch_diff_event(session, payload)
+                        else:
+                            yield _branch_verdict_event(payload)
                 if not connection_status_emitted and session.connected:
                     account = _account_from_role_arn(session.role_arn or "")
                     yield _event(
