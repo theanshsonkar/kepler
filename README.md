@@ -1,48 +1,68 @@
-# Kepler
+<div align="center">
 
-**Kepler branches your cloud, tries the change, and shows you the future before it's real.**
+# 🪐 Kepler
 
-Kepler is an autonomous, branch-native cloud agent. It connects to your AWS account **read-only**, forks your live infrastructure into an isolated branch, applies a proposed fix on that branch, and measures the consequences — findings, attack paths, compliance, blast radius — **before anything touches production**. It only interrupts a human when there's a real decision to make. **0 cloud writes, always.**
+### Branch your cloud. Try the change. See the future before it's real.
 
-Named after Johannes Kepler, who computed where a planet would be before anyone looked.
+Kepler is an autonomous, **read-only** AWS agent that forks your live infrastructure, models a fix on an isolated branch, and proves it closes the attack path — **before anything touches production**.
 
-> Built for the WeMakeDevs AWS "First Commit" hackathon — [https://www.wemakedevs.org/aws/first-commit](https://www.wemakedevs.org/aws/first-commit)
+![Kepler](docs/hero.png)
 
-## The problem
+</div>
 
-AWS tells you *what* changed (CloudTrail, Config) but drowns you in alerts and never tells you whether a change is actually dangerous or what a fix would do. Engineers either ignore the noise or test risky changes in production.
+---
 
-## What Kepler does
+## The 30-second version
 
-1. Connects to your AWS account through a **read-only** IAM role.
-2. Scans it and builds a graph of your infrastructure.
-3. Traces real **attack paths** (internet → security group → EC2 → IAM role → database) and finds the crown-jewel resources.
-4. Forks the graph into an **isolated branch**, applies a proposed fix (e.g. seal SSH open to 0.0.0.0/0), and re-computes the consequences.
-5. Shows a **before → after**: which critical findings disappear, which resources are no longer internet-reachable, and the new verdict.
-6. Asks the human one question — **Approve / Keep as-is / Review diff** — and records the decision. Nothing is ever written to your cloud.
+Your AWS account changes constantly. CloudTrail tells you *what* changed — never whether it's **dangerous**, or what a fix would actually *do*. So risky changes get tested in prod, or lost in alert noise.
 
-## How AWS is used
+Kepler connects **read-only** and, for a risky change:
 
-- **Amazon Bedrock** — the agent's reasoning model (`openai.gpt-oss-120b-1:0`, region `ap-south-1`) drives every step via the Strands Agents SDK.
-- **AWS STS AssumeRole** — the Emfirge backend assumes your **read-only** role (SecurityAudit-style, ExternalId `aws-risk-agent`) to read the account. No write permissions are ever requested.
-- **Your AWS account** is the subject: EC2 & security groups, RDS, S3, IAM, Lambda, ECS, VPC, CloudTrail, etc. are read and modeled.
-- **Free tier friendly**: Bedrock is pay-per-token (cents per run); the read-only role costs nothing; a built-in demo mode makes zero AWS calls.
+1. **Scans** your live infra and traces the real **attack path** — `internet → security group → EC2 → IAM role → database`.
+2. **Forks** the graph into an isolated branch and **applies the fix** there.
+3. Shows the **before → after** — which critical findings vanish, what's no longer internet-reachable, the new verdict.
+4. Asks **you** one question — *Approve / Keep / Review* — and records it.
 
-## Architecture
+**0 cloud writes. Ever.** The agent does the judgment; the human makes the call.
 
-Browser (Kepler UI) → Next.js API relay (SSE) → Python agent (FastAPI + Strands) → Amazon Bedrock for reasoning + Emfirge MCP (stdio) → Emfirge backend → your AWS account (read-only). See `ARCHITECTURE.md`.
+> Emfirge is the harness between AI and your cloud. **Kepler is the agent that puts your real cloud in front of an AI — safely.**
 
-## Setup
+## Watch it think
 
-Prereqs: Node 18+, Python 3.11+, an AWS account with Bedrock access in `ap-south-1` (ambient AWS credentials via `aws configure` or env), and Node (for the MCP subprocess).
+The left panel streams the agent working with your cloud, live — every tool call and result:
+```
+-> scanning live account...
+<- 9 critical . crown jewel IAM Role: NAME\_166
+-> forking branch seal-ssh-sg
+-> applying fix . restrict SSH on NAME\_132
+<- sealed NAME\_140, NAME\_132
+<- verdict: warn
+```
 
-1. Frontend deps: `npm install`
-2. Agent deps: `cd agent && python -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ..`
-3. Copy env templates: `cp .env.example .env` and `cp agent/.env.example agent/.env` and fill values (see comments).
-4. Run the agent (terminal 1): `agent/.venv/bin/uvicorn agent.main:app --port 8787`
-5. Run the frontend (terminal 2): `npm run dev` → [http://localhost:3000](http://localhost:3000)
-6. In the chat, send your read-only role ARN + region to begin (Kepler will guide you), or run in demo mode below.
+## How AWS powers it
 
-## Demo mode (deterministic, no AWS, no quota)
+- **Amazon Bedrock** (`openai.gpt-oss-120b`) — the agent's reasoning, via the **Strands Agents SDK**.
+- **AWS STS AssumeRole** — read-only access to your account. No write permissions, ever.
+- Reads EC2/SG, RDS, S3, IAM, Lambda, ECS, VPC, CloudTrail… Free-tier friendly; demo mode makes **zero** AWS calls.
 
-Start the agent with `KEPLER_DEMO=1` and it replays one real captured run (real Emfirge output, tokenized) so the UI shows the full flow with zero network calls:  
+Full diagram in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Try it in 30 seconds (no AWS needed)
+```bash
+npm install
+cd agent && python -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ..
+KEPLER_DEMO=1 agent/.venv/bin/uvicorn agent.main:app --port 8787   # terminal 1
+npm run dev                                                        # terminal 2
+```
+
+Open [http://localhost:3000](http://localhost:3000), type **`demo`**, and watch a full real run replay. For a live scan, drop `KEPLER_DEMO=1` and send your read-only role ARN + region.
+
+## Built with
+
+Strands Agents SDK · Amazon Bedrock · AWS STS · [@emfirge/mcp](https://www.npmjs.com/package/@emfirge/mcp) · Next.js 16 · React 19 · FastAPI · Tailwind
+
+## Credits & disclosure
+
+Kepler consumes **Emfirge** — a pre-existing cloud-branching engine by the same author ([github.com/theanshsonkar/emfirge](https://github.com/theanshsonkar/emfirge)) — via its public `@emfirge/mcp` package, which provides the graph, branch simulation, findings, attack paths and verdict. The work built for this hackathon is **Kepler**: the autonomous agent loop, the Bedrock + Strands integration, the streaming event pipeline, the workspace UI, and the human decision flow. Built with AI coding tools (Kiro).
+
+Built for the WeMakeDevs × AWS "First Commit" hackathon (Sept 2026). Licensed MIT — see [LICENSE](LICENSE).
