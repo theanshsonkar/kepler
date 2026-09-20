@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { ArrowLeft, GitBranch, Paperclip, Plus, Send, Terminal } from "lucide-react";
+import { GitBranch, Paperclip, Plus, Send, Terminal } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { parseSSE } from "@/lib/agent-events";
 import { cn } from "@/lib/utils";
@@ -29,7 +28,7 @@ const startingMessages: Message[] = [
 ];
 
 export function AgentWorkspace() {
-  const [tab, setTab] = useState<"activity" | "risk" | "compliance" | "diff">("activity");
+  const [tab, setTab] = useState<"activity" | "compliance" | "diff">("activity");
   const [messages, setMessages] = useState(startingMessages);
   const [draft, setDraft] = useState("");
   const [isReplying, setReplying] = useState(false);
@@ -112,7 +111,6 @@ export function AgentWorkspace() {
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-[1760px] flex-col px-4 py-5 sm:px-7 sm:py-7 lg:px-8 lg:py-7">
         <header className="mb-7 flex items-center justify-between lg:mb-0">
           <div className="flex items-center gap-3">
-            <Link href="/" aria-label="Back to Kepler home" className="grid size-9 place-items-center rounded-full border border-white/15 text-white/75 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"><ArrowLeft className="size-4" /></Link>
             <span className="grid size-9 place-items-center rounded-lg border border-white/15 bg-black/15 text-white"><BrandMark className="size-4" /></span>
             <p className="text-sm font-medium tracking-[-0.02em] text-white">Kepler</p>
           </div>
@@ -126,11 +124,10 @@ export function AgentWorkspace() {
             </div>
             <div className="flex gap-5 px-6 sm:px-8">
               <TabButton active={tab === "activity"} onClick={() => setTab("activity")} label="Activity" />
-              <TabButton active={tab === "risk"} onClick={() => setTab("risk")} label="Risk" />
               <TabButton active={tab === "compliance"} onClick={() => setTab("compliance")} label="Compliance" />
               <TabButton active={tab === "diff"} onClick={() => setTab("diff")} label="Diff" />
             </div>
-            <div className="relative flex-1 overflow-auto px-6 py-8 sm:px-8 sm:py-9">{tab === "diff" ? <Diff beforeAfter={beforeAfter} realDiff={realDiff} /> : <Activity view={tab} realActivity={realActivity} attackPaths={attackPaths} compliance={compliance} decision={decision} />}</div>
+            <div className="relative flex-1 overflow-auto px-6 py-8 sm:px-8 sm:py-9">{tab === "diff" ? <Diff beforeAfter={beforeAfter} realDiff={realDiff} /> : <Activity view={tab} realActivity={realActivity} attackPaths={attackPaths} compliance={compliance} />}</div>
             <div className="flex items-center justify-between px-6 py-5 font-mono text-[8px] uppercase tracking-[0.11em] text-white/35 sm:px-8"><span className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-[#c7f36b]" aria-hidden="true" />{status.account || status.region ? `acct ${status.account ?? "unknown"} · ${status.region ?? "unknown"} · read-only` : status.branchName ? `${status.branchName} · read-only` : "not connected · read-only"}</span><span>0 cloud writes</span></div>
           </section>
 
@@ -182,11 +179,11 @@ function ActivityFeed({ realActivity }: { realActivity: [string, string][] }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" }); }, [realActivity.length]);
   const base = "font-mono text-[11px] leading-7 sm:text-xs";
-  if (realActivity.length === 0) return <div className={base}><p className="mb-3 text-white/45">// live trace</p><p className="text-white/45">// send your role ARN + region (or "demo") to load your cloud</p></div>;
+  if (realActivity.length === 0) return <div className={base}><p className="mb-3 text-white/45">// live trace · agent ↔ emfirge</p><p className="text-white/45">// send your role ARN + region to scan your own cloud</p><p className="mt-1 text-white/35">// or type "demo" and hit send to watch a full run</p></div>;
   return (
     <div className={base}>
       <p className="mb-3 text-white/45">// live trace · agent ↔ emfirge</p>
-      <div ref={ref} className="scrollbar-subtle max-h-[60vh] space-y-1.5 overflow-y-auto pr-2">
+      <div ref={ref} className="scrollbar-subtle max-h-[38vh] space-y-1.5 overflow-y-auto pr-2">
         {realActivity.map(([ts, line], i, arr) => {
           const last = i === arr.length - 1;
           return (
@@ -201,26 +198,23 @@ function ActivityFeed({ realActivity }: { realActivity: [string, string][] }) {
   );
 }
 
-function Activity({ view, realActivity, attackPaths, compliance, decision }: { view: "activity" | "risk" | "compliance"; realActivity: [string, string][]; attackPaths: any; compliance: any; decision: any; }) {
+function Activity({ view, realActivity, attackPaths, compliance }: { view: "activity" | "compliance"; realActivity: [string, string][]; attackPaths: any; compliance: any; }) {
   const paths: any[] = attackPaths?.paths ?? [];
   const criticals: any[] = attackPaths?.critical_resources ?? [];
   const criticalCount = paths.filter((p) => String(p.severity).toLowerCase() === "critical").length;
   const netPath = paths.find((p) => Array.isArray(p.path) && p.path.includes("INTERNET"));
   const base = "font-mono text-[11px] leading-7 sm:text-xs";
-  if (view === "activity") return <ActivityFeed realActivity={realActivity} />;
-  if (view === "risk") {
-    if (paths.length === 0) return <div className={base}><p className="text-white/45">// no findings yet — run a scan</p></div>;
+  if (view === "activity") {
     return (
-      <div className={cn(base, "space-y-8")}>
-        <div>
-          <p className="mb-3 text-white/45">// findings · {criticalCount} critical</p>
-          <div className="space-y-1">
-            {paths.slice(0, 5).map((p, i) => (<p key={i} className={String(p.severity).toLowerCase() === "critical" ? "text-[#e8b292]" : "text-white/70"}>{String(p.severity).toLowerCase() === "critical" ? "! " : "· "}{p.finding_title}</p>))}
-            {paths.length > 5 && <p className="text-white/30">+{paths.length - 5} more</p>}
+      <div className="flex flex-col gap-6">
+        <ActivityFeed realActivity={realActivity} />
+        {paths.length > 0 && (
+          <div className={cn(base, "space-y-6 border-t border-white/10 pt-6")}>
+            <div><p className="mb-3 text-white/45">// findings · {criticalCount} critical</p><div className="space-y-1">{paths.slice(0, 4).map((p, i) => (<p key={i} className={String(p.severity).toLowerCase() === "critical" ? "text-[#e8b292]" : "text-white/70"}>{String(p.severity).toLowerCase() === "critical" ? "! " : "· "}{p.finding_title}</p>))}{paths.length > 4 && <p className="text-white/30">+{paths.length - 4} more</p>}</div></div>
+            {netPath && (<div><p className="mb-3 text-white/45">// attack path · internet → crown jewel</p><p className="break-words text-white/80">{netPath.path.join("  →  ")}</p></div>)}
+            {criticals.length > 0 && (<div><p className="mb-3 text-white/45">// crown jewels</p><div className="space-y-1">{criticals.slice(0, 2).map((c, i) => (<div key={i} className="flex justify-between gap-3"><span className="text-white/70">{c.label}</span><span className="text-white/40">{c.finding_count} findings · blast {c.blast_radius}</span></div>))}</div></div>)}
           </div>
-        </div>
-        {netPath && (<div className="border-t border-white/10 pt-6"><p className="mb-3 text-white/45">// attack path · internet → crown jewel</p><p className="break-words text-white/80">{netPath.path.join("  →  ")}</p></div>)}
-        {criticals.length > 0 && (<div className="border-t border-white/10 pt-6"><p className="mb-3 text-white/45">// crown jewels</p><div className="space-y-1">{criticals.slice(0, 3).map((c, i) => (<div key={i} className="flex justify-between gap-3"><span className="text-white/70">{c.label}</span><span className="text-white/40">{c.finding_count} findings · blast {c.blast_radius}{c.exploit_distance != null ? ` · reach ${c.exploit_distance}` : ""}</span></div>))}</div></div>)}
+        )}
       </div>
     );
   }
