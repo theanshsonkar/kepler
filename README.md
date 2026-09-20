@@ -2,9 +2,9 @@
 
 # 🪐 Kepler
 
-### Branch your cloud. Try the change. See the future before it's real.
+### Git branches, for your cloud's blast radius.
 
-Kepler is an autonomous, **read-only** AWS agent that forks your live infrastructure, models a fix on an isolated branch, and proves it closes the attack path — **before anything touches production**.
+Kepler forks your live AWS, tries the change on an isolated copy, and proves what it breaks — internet paths, criticals, compliance — **before a single byte hits production**.
 
 ![Kepler](docs/hero.png)
 
@@ -65,4 +65,4 @@ Strands Agents SDK · Amazon Bedrock · AWS STS · [@emfirge/mcp](https://www.np
 
 Kepler consumes **Emfirge** — a pre-existing cloud-branching engine by the same author ([github.com/theanshsonkar/emfirge](https://github.com/theanshsonkar/emfirge)) — via its public `@emfirge/mcp` package, which provides the graph, branch simulation, findings, attack paths and verdict. The work built for this hackathon is **Kepler**: the autonomous agent loop, the Bedrock + Strands integration, the streaming event pipeline, the workspace UI, and the human decision flow. Built with AI coding tools (Kiro).
 
-Built for the WeMakeDevs × AWS "First Commit" hackathon (Sept 2026). Licensed MIT — see [LICENSE](LICENSE).
+Built for the WeMakeDevs × AWS "First Commit" hackathon (Sept 2026). Licensed AGPL-3.0 — see [LICENSE](LICENSE).
