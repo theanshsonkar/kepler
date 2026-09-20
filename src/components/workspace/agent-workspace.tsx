@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { ArrowLeft, ChevronDown, GitBranch, Paperclip, Plus, Send, Terminal } from "lucide-react";
+import { ArrowLeft, GitBranch, Paperclip, Plus, Send, Terminal } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { parseSSE } from "@/lib/agent-events";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,7 @@ const startingMessages: Message[] = [
 ];
 
 export function AgentWorkspace() {
-  const [tab, setTab] = useState<"activity" | "diff">("activity");
+  const [tab, setTab] = useState<"activity" | "risk" | "compliance" | "diff">("activity");
   const [messages, setMessages] = useState(startingMessages);
   const [draft, setDraft] = useState("");
   const [isReplying, setReplying] = useState(false);
@@ -63,6 +63,7 @@ export function AgentWorkspace() {
     setMessages((current) => [...current, { from: "user", body, time: "now" }]);
     setDraft("");
     setReplying(true);
+    setTab("activity");
     const agentMessageId = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let agentStarted = false;
     try {
@@ -121,14 +122,16 @@ export function AgentWorkspace() {
           <section className="agent-grain relative flex min-h-[650px] flex-col overflow-hidden rounded-[16px] border border-white/[0.14] bg-[#141614] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] lg:min-h-0" aria-label="Agent sandbox">
             <div className="flex items-center justify-between px-6 py-6 sm:px-8">
               <div className="flex items-center gap-2.5"><Terminal className="size-4 text-white/65" /><div><p className="text-sm font-medium text-white">cloud branch</p><p className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.13em] text-white/40">read-only · 0 cloud writes</p></div></div>
-              <button type="button" className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-white/55 transition hover:text-white"><GitBranch className="size-3.5" />Branch<ChevronDown className="size-3" /></button>
+              <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-white/55"><GitBranch className="size-3.5" />{status.branchName ? status.branchName : "read-only fork"}</span>
             </div>
             <div className="flex gap-5 px-6 sm:px-8">
               <TabButton active={tab === "activity"} onClick={() => setTab("activity")} label="Activity" />
+              <TabButton active={tab === "risk"} onClick={() => setTab("risk")} label="Risk" />
+              <TabButton active={tab === "compliance"} onClick={() => setTab("compliance")} label="Compliance" />
               <TabButton active={tab === "diff"} onClick={() => setTab("diff")} label="Diff" />
             </div>
-            <div className="relative flex-1 overflow-auto px-6 py-8 sm:px-8 sm:py-9">{tab === "activity" ? <Activity realActivity={realActivity} attackPaths={attackPaths} compliance={compliance} beforeAfter={beforeAfter} decision={decision} /> : <Diff beforeAfter={beforeAfter} realDiff={realDiff} />}</div>
-            <div className="flex items-center justify-between px-6 py-5 font-mono text-[8px] uppercase tracking-[0.11em] text-white/35 sm:px-8"><span className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-[#c7f36b]" aria-hidden="true" />{status.account || status.region ? `acct ${status.account ?? "unknown"} · ${status.region ?? "unknown"} · read-only` : status.branchName ? `${status.branchName} · read-only` : "payments-production · read-only"}</span><span>0 cloud writes</span></div>
+            <div className="relative flex-1 overflow-auto px-6 py-8 sm:px-8 sm:py-9">{tab === "diff" ? <Diff beforeAfter={beforeAfter} realDiff={realDiff} /> : <Activity view={tab} realActivity={realActivity} attackPaths={attackPaths} compliance={compliance} decision={decision} />}</div>
+            <div className="flex items-center justify-between px-6 py-5 font-mono text-[8px] uppercase tracking-[0.11em] text-white/35 sm:px-8"><span className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-[#c7f36b]" aria-hidden="true" />{status.account || status.region ? `acct ${status.account ?? "unknown"} · ${status.region ?? "unknown"} · read-only` : status.branchName ? `${status.branchName} · read-only` : "not connected · read-only"}</span><span>0 cloud writes</span></div>
           </section>
 
           <section className="agent-grain relative flex min-h-[650px] flex-col overflow-hidden rounded-[16px] border border-white/[0.14] bg-[#141614] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] lg:min-h-0" aria-label="Chat with Kepler">
@@ -163,94 +166,87 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
   return <button type="button" onClick={onClick} className={cn("border-b px-0 py-3 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c7f36b]/60", active ? "border-[#c7f36b] text-white" : "border-transparent text-white/40 hover:text-white/70")}>{label}</button>;
 }
 
-function Activity({ realActivity, attackPaths, compliance, beforeAfter, decision }: { realActivity: [string, string][]; attackPaths: any; compliance: any; beforeAfter: any; decision: any; }) {
+function TypeLine({ text, animate }: { text: string; animate: boolean }) {
+  const [shown, setShown] = useState(animate ? 0 : text.length);
+  useEffect(() => {
+    if (!animate) { setShown(text.length); return; }
+    setShown(0);
+    let i = 0;
+    const id = setInterval(() => { i += 1; setShown(i); if (i >= text.length) clearInterval(id); }, 16);
+    return () => clearInterval(id);
+  }, [text, animate]);
+  return <>{text.slice(0, shown)}{animate && shown < text.length && <span className="caret-blink">▊</span>}</>;
+}
+
+function ActivityFeed({ realActivity }: { realActivity: [string, string][] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" }); }, [realActivity.length]);
+  const base = "font-mono text-[11px] leading-7 sm:text-xs";
+  if (realActivity.length === 0) return <div className={base}><p className="mb-3 text-white/45">// live trace</p><p className="text-white/45">// send your role ARN + region (or "demo") to load your cloud</p></div>;
+  return (
+    <div className={base}>
+      <p className="mb-3 text-white/45">// live trace · agent ↔ emfirge</p>
+      <div ref={ref} className="scrollbar-subtle max-h-[60vh] space-y-1.5 overflow-y-auto pr-2">
+        {realActivity.map(([ts, line], i, arr) => {
+          const last = i === arr.length - 1;
+          return (
+            <div key={i} className="line-in grid grid-cols-[70px_minmax(0,1fr)] gap-3">
+              <span className="text-white/30">{(() => { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleTimeString([], { hour12: false }); })()}</span>
+              <p className={cn(line.startsWith("<-") ? "text-[#c7f36b]" : last ? "text-white" : "text-white/70")}><TypeLine text={line} animate={last} /></p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Activity({ view, realActivity, attackPaths, compliance, decision }: { view: "activity" | "risk" | "compliance"; realActivity: [string, string][]; attackPaths: any; compliance: any; decision: any; }) {
   const paths: any[] = attackPaths?.paths ?? [];
   const criticals: any[] = attackPaths?.critical_resources ?? [];
   const criticalCount = paths.filter((p) => String(p.severity).toLowerCase() === "critical").length;
   const netPath = paths.find((p) => Array.isArray(p.path) && p.path.includes("INTERNET"));
-  const connected = realActivity.length > 0;
-  const sealed: string[] = beforeAfter?.no_longer_internet_reachable ?? decision?.no_longer_internet_reachable ?? [];
-  const removed: any[] = decision?.removed_criticals ?? [];
-  return (
-    <div className="space-y-8 font-mono text-[11px] leading-7 sm:text-xs">
-      <div>
-        <p className="mb-3 text-white/45">// live trace</p>
-        {connected ? (
-          <div className="space-y-1.5">
-            {realActivity.slice(-8).map(([ts, line], i, arr) => (
-              <div key={i} className="grid grid-cols-[70px_minmax(0,1fr)] gap-3">
-                <span className="text-white/30">{(() => { const d = new Date(ts); return isNaN(d.getTime()) ? ts : d.toLocaleTimeString([], { hour12: false }); })()}</span>
-                <p className={i === arr.length - 1 ? "text-[#c7f36b]" : "text-white/70"}>{line}{i === arr.length - 1 && <span className="caret-blink ml-0.5">▊</span>}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-white/45">// send your role ARN + region (or "demo") to load your cloud</p>
-        )}
-      </div>
-      {paths.length > 0 && (
-        <div className="border-t border-white/10 pt-6">
+  const base = "font-mono text-[11px] leading-7 sm:text-xs";
+  if (view === "activity") return <ActivityFeed realActivity={realActivity} />;
+  if (view === "risk") {
+    if (paths.length === 0) return <div className={base}><p className="text-white/45">// no findings yet — run a scan</p></div>;
+    return (
+      <div className={cn(base, "space-y-8")}>
+        <div>
           <p className="mb-3 text-white/45">// findings · {criticalCount} critical</p>
           <div className="space-y-1">
-            {paths.slice(0, 6).map((p, i) => (
-              <p key={i} className={String(p.severity).toLowerCase() === "critical" ? "text-[#e8b292]" : "text-white/70"}>{String(p.severity).toLowerCase() === "critical" ? "! " : "· "}{p.finding_title}</p>
-            ))}
+            {paths.slice(0, 5).map((p, i) => (<p key={i} className={String(p.severity).toLowerCase() === "critical" ? "text-[#e8b292]" : "text-white/70"}>{String(p.severity).toLowerCase() === "critical" ? "! " : "· "}{p.finding_title}</p>))}
+            {paths.length > 5 && <p className="text-white/30">+{paths.length - 5} more</p>}
           </div>
         </div>
-      )}
-      {netPath && (
-        <div className="border-t border-white/10 pt-6">
-          <p className="mb-3 text-white/45">// attack path · internet → crown jewel</p>
-          <p className="break-words text-white/80">{netPath.path.join("  →  ")}</p>
-        </div>
-      )}
-      {criticals.length > 0 && (
-        <div className="border-t border-white/10 pt-6">
-          <p className="mb-3 text-white/45">// crown jewels</p>
-          <div className="space-y-1">
-            {criticals.slice(0, 3).map((c, i) => (
-              <div key={i} className="flex justify-between gap-3"><span className="text-white/70">{c.label}</span><span className="text-white/40">{c.finding_count} findings · blast {c.blast_radius}{c.exploit_distance != null ? ` · reach ${c.exploit_distance}` : ""}</span></div>
-            ))}
-          </div>
-        </div>
-      )}
-      {compliance && (
-        <div className="border-t border-white/10 pt-6">
-          <p className="mb-3 text-white/45">// compliance</p>
-          <p className="text-white/70">{compliance.framework} {compliance.version} — <span className="text-[#c7f36b]">{compliance.passed} pass</span> · <span className="text-[#e8b292]">{compliance.failed} fail</span> / {compliance.total}</p>
-        </div>
-      )}
-      {(beforeAfter || decision) && (
-        <div className="border-t border-white/10 pt-6">
-          <p className="mb-3 text-white/45">// before → after</p>
-          {decision?.verdict && <p className="text-white/70">verdict <span className={decision.verdict === "pass" ? "text-[#c7f36b]" : "text-[#e8b292]"}>{decision.verdict}</span></p>}
-          {removed.slice(0, 3).map((f, i) => (<p key={i} className="text-[#c7f36b]">removed  {f.rule_id || f.check_id} · {f.resource_id}</p>))}
-          {sealed.length > 0 && <p className="text-[#c7f36b]">sealed  {sealed.join(", ")} · no longer internet-reachable</p>}
-          <p className="text-white/45">score {beforeAfter?.score_before ?? decision?.score_before} → {beforeAfter?.score_after ?? decision?.score_after} · other criticals remain</p>
-        </div>
-      )}
+        {netPath && (<div className="border-t border-white/10 pt-6"><p className="mb-3 text-white/45">// attack path · internet → crown jewel</p><p className="break-words text-white/80">{netPath.path.join("  →  ")}</p></div>)}
+        {criticals.length > 0 && (<div className="border-t border-white/10 pt-6"><p className="mb-3 text-white/45">// crown jewels</p><div className="space-y-1">{criticals.slice(0, 3).map((c, i) => (<div key={i} className="flex justify-between gap-3"><span className="text-white/70">{c.label}</span><span className="text-white/40">{c.finding_count} findings · blast {c.blast_radius}{c.exploit_distance != null ? ` · reach ${c.exploit_distance}` : ""}</span></div>))}</div></div>)}
+      </div>
+    );
+  }
+  if (!compliance) return <div className={base}><p className="text-white/45">// no compliance data yet</p></div>;
+  const failed: any[] = (compliance.controls ?? []).filter((c: any) => String(c.status).toLowerCase() === "fail");
+  return (
+    <div className={cn(base, "space-y-6")}>
+      <div><p className="mb-3 text-white/45">// compliance</p><p className="text-white/70">{compliance.framework} {compliance.version} — <span className="text-[#c7f36b]">{compliance.passed} pass</span> · <span className="text-[#e8b292]">{compliance.failed} fail</span> / {compliance.total}</p></div>
+      {failed.length > 0 && (<div className="border-t border-white/10 pt-6"><p className="mb-3 text-white/45">// failing controls</p><div className="space-y-1">{failed.slice(0, 6).map((c: any, i: number) => (<p key={i} className="text-white/70">! {c.title}</p>))}{failed.length > 6 && <p className="text-white/30">+{failed.length - 6} more</p>}</div></div>)}
     </div>
   );
 }
 
 function Diff({ beforeAfter, realDiff }: { beforeAfter: any; realDiff: string | null }) {
-  if (beforeAfter) {
-    const removed: any[] = beforeAfter.removed_findings ?? [];
-    const added: any[] = beforeAfter.added_findings ?? [];
-    const sealed: string[] = beforeAfter.no_longer_internet_reachable ?? [];
-    return (
-      <div className="space-y-6 font-mono text-[11px] leading-7 text-white/70 sm:text-xs">
-        <p className="text-white/45">// branch diff · modeled on isolated branch</p>
-        <div className="space-y-1">
-          {removed.map((f, i) => (<p key={`r${i}`} className="text-[#c7f36b]">- {f.rule_id || "finding"} · {f.resource_id} · {f.severity}</p>))}
-          {added.map((f, i) => (<p key={`a${i}`} className="text-[#e8b292]">+ {f.rule_id || "finding"} · {f.resource_id} · {f.severity}</p>))}
-        </div>
-        {sealed.length > 0 && <p className="text-[#c7f36b]">no longer internet-reachable: {sealed.join(", ")}</p>}
-        <p className="font-sans text-sm leading-6 text-white/45">These changes exist only on the branch. Nothing was applied to your cloud.</p>
-      </div>
-    );
-  }
-  return <div className="font-mono text-[11px] leading-7 text-white/70 sm:text-xs"><p className="mb-6 text-white/45">// branch diff</p><pre className="overflow-auto whitespace-pre-wrap">{realDiff ?? "no branch changes yet"}</pre></div>;
+  const base = "font-mono text-[11px] leading-7 sm:text-xs";
+  if (!beforeAfter) return <div className={cn(base, "text-white/70")}><p className="mb-6 text-white/45">// branch diff</p><p className="text-white/45">{realDiff ?? "no branch changes yet"}</p></div>;
+  const removed: any[] = beforeAfter.removed_findings ?? [];
+  const added: any[] = beforeAfter.added_findings ?? [];
+  const sealed: string[] = beforeAfter.no_longer_internet_reachable ?? [];
+  return (
+    <div className={cn(base, "space-y-6 text-white/70")}>
+      <div><p className="mb-3 text-white/45">// before → after</p>{sealed.length > 0 && <p className="text-[#c7f36b]">sealed  {sealed.join(", ")} · no longer internet-reachable</p>}<p className="text-white/45">score {beforeAfter.score_before} → {beforeAfter.score_after} · other criticals remain</p></div>
+      <div className="border-t border-white/10 pt-6"><p className="mb-3 text-white/45">// branch diff · findings</p><div className="space-y-1">{removed.map((f, i) => (<p key={`r${i}`} className="text-[#c7f36b]">- {f.rule_id || "finding"} · {f.resource_id} · {f.severity}</p>))}{added.map((f, i) => (<p key={`a${i}`} className="text-[#e8b292]">+ {f.rule_id || "finding"} · {f.resource_id} · {f.severity}</p>))}</div></div>
+      <p className="font-sans text-sm leading-6 text-white/45">These changes exist only on the branch. Nothing was applied to your cloud.</p>
+    </div>
+  );
 }
 
 function Message({ message }: { message: Message }) {

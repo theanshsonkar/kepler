@@ -399,6 +399,29 @@ def _decision_event(payload: dict) -> dict:
     })
 
 
+def _demo_narrate(tool: str, payload: dict | None):
+    p = payload or {}
+    if tool == "set_connection": return ("-> assuming read-only role . us-east-1", "<- connected . 0 cloud writes")
+    if tool == "emfirge_scan": return ("-> scanning live account...", "<- graph built . read-only")
+    if tool == "emfirge_attack_paths":
+        paths = p.get("paths", []); crit = sum(1 for x in paths if str(x.get("severity", "")).lower() == "critical")
+        cr = p.get("critical_resources", []); jewel = cr[0].get("label") if cr else "-"
+        return ("-> tracing attack paths...", f"<- {crit} critical . crown jewel {jewel}")
+    if tool == "emfirge_check_compliance":
+        fw = p; fr = p.get("frameworks")
+        if isinstance(fr, list) and fr: fw = fr[0]
+        return ("-> checking CIS AWS 1.5...", f"<- {fw.get('passedControls', 0)}/{fw.get('totalControls', 0)} pass . {fw.get('failedControls', 0)} fail")
+    if tool == "emfirge_create_branch": return ("-> forking branch seal-ssh-sg", "<- branch ready")
+    if tool == "emfirge_apply_change": return ("-> applying fix . restrict SSH on NAME_132", None)
+    if tool == "emfirge_verify_fix": return ("-> verifying fix holds...", "<- fix verified")
+    if tool == "emfirge_branch_diff":
+        sealed = p.get("no_longer_internet_reachable", [])
+        return ("-> diffing branch...", ("<- sealed " + ", ".join(sealed)) if sealed else "<- diff computed")
+    if tool == "emfirge_branch_verdict":
+        return ("-> re-running rules on branch...", f"<- verdict: {str(p.get('verdict', '')).lower()}")
+    return (tool, None)
+
+
 async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any], None]:
     """Run an isolated read-only turn using the unified event schema."""
     session = get_session(session_id)
@@ -415,24 +438,27 @@ async def run_turn(prompt: str, session_id: str) -> AsyncGenerator[dict[str, Any
         for entry in fixture.get("tools", []):
             tool = entry.get("tool") or ""
             payload = entry.get("payload")
-            yield _event("activity", {"line": tool})
-            await asyncio.sleep(0.45)
-            if payload is None:
-                continue
-            if tool in ("emfirge_scan", "emfirge_get_findings"):
-                for ev in _scan_events(tool, payload):
-                    yield ev
-            elif tool == "emfirge_attack_paths":
-                yield _attack_paths_event(payload)
-            elif tool == "emfirge_check_compliance":
-                yield _compliance_event(payload)
-            elif tool == "emfirge_branch_diff":
-                yield _branch_diff_event(session, payload)
-                yield _before_after_event(payload)
-            elif tool == "emfirge_branch_verdict":
-                yield _branch_verdict_event(payload)
-                yield _decision_event(payload)
-            await asyncio.sleep(0.35)
+            call_line, result_line = _demo_narrate(tool, payload)
+            if call_line:
+                yield _event("activity", {"line": call_line})
+                await asyncio.sleep(0.5)
+            if payload is not None:
+                if tool in ("emfirge_scan", "emfirge_get_findings"):
+                    for ev in _scan_events(tool, payload):
+                        yield ev
+                elif tool == "emfirge_attack_paths":
+                    yield _attack_paths_event(payload)
+                elif tool == "emfirge_check_compliance":
+                    yield _compliance_event(payload)
+                elif tool == "emfirge_branch_diff":
+                    yield _branch_diff_event(session, payload)
+                    yield _before_after_event(payload)
+                elif tool == "emfirge_branch_verdict":
+                    yield _branch_verdict_event(payload)
+                    yield _decision_event(payload)
+            if result_line:
+                yield _event("activity", {"line": result_line})
+                await asyncio.sleep(0.5)
         reply = fixture.get("reply") or ""
         if reply:
             yield _event("token", {"text": reply})
